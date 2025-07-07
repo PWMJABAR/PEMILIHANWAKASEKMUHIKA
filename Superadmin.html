@@ -239,13 +239,13 @@
             <!-- Dashboard Section -->
             <div id="dashboardSection" class="d-none">
                 <!-- Welcome Message -->
-                <div class="card p-4 mb-4 fade-in rounded-4 shadow">
+                <div class="card p-4 mb-4 fade-in rounded-4 shadow" id="welcomeMessageCard">
                     <h2 class="fs-3 fw-bold text-center text-dark">Selamat Datang, Superadmin!</h2>
                     <p class="text-center text-secondary mt-2">Kelola sistem e-voting dengan mudah dan aman</p>
                 </div>
 
                 <!-- Statistics Cards -->
-                <div class="row g-4 mb-4">
+                <div class="row g-4 mb-4" id="statisticsSection">
                     <div class="col-md-4">
                         <div class="stats-card fade-in rounded-4 shadow-sm">
                             <div class="fs-2 fw-bold mb-2" id="totalVoters">0</div>
@@ -270,35 +270,17 @@
                 <div class="row g-4 mb-4">
                     <!-- Results Chart -->
                     <div class="col-lg-6">
-                        <div class="chart-container fade-in rounded-4 shadow">
+                        <div class="chart-container fade-in rounded-4 shadow" id="resultsChartContainer">
                             <h3 class="fs-4 fw-bold mb-4 text-dark">Hasil Pemilihan Real-time</h3>
                             <div class="chart-wrapper" style="height: 380px;">
                                 <canvas id="resultsChart"></canvas>
-                            </div>
-                            <!-- Candidate Results Table -->
-                            <div class="custom-table-container mt-4">
-                                <h4 class="custom-table-header py-3 px-4 fs-6">Rincian Perolehan Suara Calon</h4>
-                                <div class="table-responsive">
-                                    <table class="table table-hover mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th class="py-2 px-4 text-start text-secondary">Calon</th>
-                                                <th class="py-2 px-4 text-start text-secondary">Suara</th>
-                                                <th class="py-2 px-4 text-start text-secondary">Persentase</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="candidateResultsTable">
-                                            <tr><td colspan="3" class="py-2 px-4 text-center text-secondary">Memuat data...</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Unvoted List -->
                     <div class="col-lg-6">
-                        <div class="card p-4 fade-in rounded-4 shadow">
+                        <div class="card p-4 fade-in rounded-4 shadow" id="unvotedListCard">
                             <h3 class="fs-4 fw-bold mb-4 text-dark">Pemilih Belum Memberikan Suara</h3>
                             <div class="overflow-auto" style="max-height: 400px;">
                                 <ul id="unvotedList" class="list-unstyled mb-0">
@@ -309,8 +291,29 @@
                     </div>
                 </div>
 
+                <!-- Candidate Results Table (now a separate card for better PDF export) -->
+                <div class="card p-4 mb-4 fade-in rounded-4 shadow" id="candidateResultsTableCard">
+                    <h3 class="fs-4 fw-bold mb-4 text-dark">Rincian Perolehan Suara Calon</h3>
+                    <div class="custom-table-container">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="py-2 px-4 text-start text-secondary">Calon</th>
+                                        <th class="py-2 px-4 text-start text-secondary">Suara</th>
+                                        <th class="py-2 px-4 text-start text-secondary">Persentase</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="candidateResultsTable">
+                                    <tr><td colspan="3" class="py-2 px-4 text-center text-secondary">Memuat data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Voting Details Table -->
-                <div class="card p-4 mb-4 fade-in rounded-4 shadow">
+                <div class="card p-4 mb-4 fade-in rounded-4 shadow" id="votingDetailsTableCard">
                     <h3 class="fs-4 fw-bold mb-4 text-dark">Detail Pilihan Pemilih</h3>
                     <div class="custom-table-container">
                         <div class="table-responsive">
@@ -720,49 +723,110 @@
         // Export PDF functionality
         exportPdfBtn.addEventListener('click', async () => {
             showLoading();
-            try {
-                // Hide buttons temporarily
-                exportPdfBtn.style.display = 'none';
-                resetDataBtn.style.display = 'none';
 
-                const dashboardContent = document.getElementById('dashboardSection');
-                const canvas = await html2canvas(dashboardContent, {
-                    scale: 2,
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const margin = 10; // mm
+            let yOffset = margin;
+
+            // Define elements to capture and their titles for PDF
+            const elementsToCaptureAndReset = [
+                { selector: '.header-gradient', title: 'Header E-Voting' },
+                { selector: '#welcomeMessageCard', title: 'Pesan Selamat Datang' },
+                { selector: '#statisticsSection', title: 'Statistik Pemilihan' },
+                { selector: '#resultsChartContainer', title: 'Hasil Pemilihan Real-time' },
+                { selector: '#candidateResultsTableCard', title: 'Rincian Perolehan Suara Calon' },
+                { selector: '#unvotedListCard', title: 'Pemilih Belum Memberikan Suara' },
+                { selector: '#votingDetailsTableCard', title: 'Detail Pilihan Pemilih' }
+            ];
+
+            const originalElementStyles = new Map();
+
+            // Store original styles and modify for PDF capture
+            elementsToCaptureAndReset.forEach(item => {
+                const element = document.querySelector(item.selector);
+                if (element) { // Add null check here
+                    originalElementStyles.set(element, {
+                        boxShadow: element.style.boxShadow,
+                        border: element.style.border,
+                        background: element.style.background,
+                        color: element.style.color,
+                        computedBackground: window.getComputedStyle(element).background // Store computed style for gradients
+                    });
+                    element.style.boxShadow = 'none';
+                    element.style.border = 'none';
+                    element.style.background = '#ffffff'; // Set to white for capture
+                    element.style.color = '#000000'; // Set text to black for capture
+                }
+            });
+            const originalBodyBg = document.body.style.background;
+            document.body.style.background = '#ffffff';
+
+            // Hide action buttons during capture
+            exportPdfBtn.style.display = 'none';
+            resetDataBtn.style.display = 'none';
+
+            // Function to add a section to PDF
+            async function addSectionToPdf(element, titleText, pdfInstance, currentYOffset) {
+                if (!element) return currentYOffset; // Ensure element exists before proceeding
+
+                // Add title
+                pdfInstance.setFontSize(16);
+                pdfInstance.setTextColor(0, 0, 0); // Black text
+                pdfInstance.text(titleText, margin, currentYOffset);
+                currentYOffset += 10; // Space after title
+
+                const canvas = await html2canvas(element, {
+                    scale: 3, // High resolution
                     useCORS: true,
                     logging: false,
-                    windowWidth: dashboardContent.scrollWidth,
-                    windowHeight: dashboardContent.scrollHeight
+                    backgroundColor: '#ffffff' // Ensure white background for captured image
                 });
 
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                
-                const imgWidth = 210;
-                const pageHeight = 297;
-                const imgHeight = canvas.height * imgWidth / canvas.width;
-                let heightLeft = imgHeight;
-                let position = 0;
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = 190; // A4 width minus margins (210 - 2*10)
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
+                // Check if content fits on current page
+                if (currentYOffset + imgHeight + margin > pdfInstance.internal.pageSize.height) {
+                    pdfInstance.addPage();
+                    currentYOffset = margin;
+                }
 
-                while (heightLeft >= 0) {
-                    position = heightLeft - imgHeight;
-                    pdf.addPage();
-                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
+                pdfInstance.addImage(imgData, 'PNG', margin, currentYOffset, imgWidth, imgHeight);
+                currentYOffset += imgHeight + 15; // Space after image
+
+                return currentYOffset;
+            }
+
+            try {
+                // Capture and add sections
+                for (const item of elementsToCaptureAndReset) {
+                    const element = document.querySelector(item.selector);
+                    yOffset = await addSectionToPdf(element, item.title, pdf, yOffset);
                 }
 
                 pdf.save(`Laporan_E-Voting_${new Date().toISOString().split('T')[0]}.pdf`);
                 showMessage('Laporan PDF berhasil diekspor!', 'success');
 
-                // Restore buttons
-                exportPdfBtn.style.display = '';
-                resetDataBtn.style.display = '';
             } catch (error) {
                 console.error('Error exporting PDF:', error);
                 showMessage('Gagal mengekspor PDF', 'danger');
             } finally {
+                // Restore original styles
+                document.body.style.background = originalBodyBg;
+                originalElementStyles.forEach((styles, element) => {
+                    if (element) { // Add null check here too
+                        element.style.boxShadow = styles.boxShadow;
+                        element.style.border = styles.border;
+                        element.style.background = styles.computedBackground; // Use computed background for gradients
+                        element.style.color = styles.color;
+                    }
+                });
+
+                // Restore buttons
+                exportPdfBtn.style.display = '';
+                resetDataBtn.style.display = '';
                 hideLoading();
             }
         });
