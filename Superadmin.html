@@ -745,18 +745,19 @@
             // Store original styles and modify for PDF capture
             elementsToCaptureAndReset.forEach(item => {
                 const element = document.querySelector(item.selector);
-                if (element) { // Add null check here
+                if (element) {
                     originalElementStyles.set(element, {
                         boxShadow: element.style.boxShadow,
                         border: element.style.border,
                         background: element.style.background,
-                        color: element.style.color,
-                        computedBackground: window.getComputedStyle(element).background // Store computed style for gradients
+                        backgroundImage: element.style.backgroundImage, // Capture background-image
+                        color: element.style.color
                     });
                     element.style.boxShadow = 'none';
                     element.style.border = 'none';
-                    element.style.background = '#ffffff'; // Set to white for capture
-                    element.style.color = '#000000'; // Set text to black for capture
+                    element.style.background = '#ffffff'; // Set solid white background
+                    element.style.backgroundImage = 'none'; // Remove any gradient image
+                    element.style.color = '#000000'; // Ensure text is black
                 }
             });
             const originalBodyBg = document.body.style.background;
@@ -768,7 +769,7 @@
 
             // Function to add a section to PDF
             async function addSectionToPdf(element, titleText, pdfInstance, currentYOffset) {
-                if (!element) return currentYOffset; // Ensure element exists before proceeding
+                if (!element) return currentYOffset;
 
                 // Add title
                 pdfInstance.setFontSize(16);
@@ -816,10 +817,11 @@
                 // Restore original styles
                 document.body.style.background = originalBodyBg;
                 originalElementStyles.forEach((styles, element) => {
-                    if (element) { // Add null check here too
+                    if (element) {
                         element.style.boxShadow = styles.boxShadow;
                         element.style.border = styles.border;
-                        element.style.background = styles.computedBackground; // Use computed background for gradients
+                        element.style.background = styles.background; // Restore original background
+                        element.style.backgroundImage = styles.backgroundImage; // Restore original background-image
                         element.style.color = styles.color;
                     }
                 });
